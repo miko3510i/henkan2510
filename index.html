@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagram Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="vendor/viz.js"></script>
+  </head>
+  <body>
+    <main class="layout">
+      <header class="header">
+        <h1>NotebookLM Diagram Visualizer</h1>
+        <p class="tagline">Mermaid や Graphviz DOT 形式を貼り付けて図を描画し、PNG と SVG に保存できます。</p>
+      </header>
+      <section class="controls">
+        <fieldset class="diagram-type">
+          <legend>入力形式</legend>
+          <label><input type="radio" name="diagramType" value="mermaid" checked /> Mermaid</label>
+          <label><input type="radio" name="diagramType" value="graphviz" /> Graphviz DOT</label>
+        </fieldset>
+        <textarea id="diagramInput" placeholder="例: graph TD; A[Start] --> B{Process}; B --> C[End];" spellcheck="false"></textarea>
+        <div class="button-row">
+          <button id="renderBtn" class="primary">描画</button>
+          <button id="exportPngBtn" class="secondary" disabled>PNG 保存</button>
+          <button id="exportSvgBtn" class="secondary" disabled>SVG 保存</button>
+        </div>
+        <p id="statusMessage" role="status" aria-live="polite"></p>
+      </section>
+      <section class="preview" aria-labelledby="previewTitle">
+        <h2 id="previewTitle">プレビュー</h2>
+        <div id="diagramOutput" class="diagram-surface"></div>
+      </section>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
