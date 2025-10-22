@@ -22,8 +22,13 @@ const diagramOutput = document.getElementById('diagramOutput');
 let currentType = 'mermaid';
 let currentSvg = null;
 let lastSource = '';
+let lastType = currentType;
 let vizInstance = null;
 const VIZ_WORKER_URL = 'vendor/full.render.js';
+const AUTO_RENDER_DELAY = 400;
+
+let renderTimer = null;
+let activeRenderToken = 0;
 
 function ensureViz() {
   if (!vizInstance) {
@@ -36,40 +41,16 @@ diagramTypeInputs.forEach((input) => {
   input.addEventListener('change', (event) => {
     currentType = event.target.value;
     statusMessage.textContent = '';
+    scheduleRender(true);
   });
 });
 
-renderBtn.addEventListener('click', async () => {
-  const source = diagramInput.value.trim();
-  if (!source) {
-    statusMessage.textContent = '入力が空です。Mermaid または DOT を貼り付けてください。';
-    diagramOutput.innerHTML = '';
-    currentSvg = null;
-    toggleExportButtons(false);
-    return;
-  }
+diagramInput.addEventListener('input', () => {
+  scheduleRender();
+});
 
-  setLoading(true);
-  try {
-    let svgElement;
-    if (currentType === 'mermaid') {
-      svgElement = await renderMermaid(source);
-    } else {
-      svgElement = await renderGraphviz(source);
-    }
-    replaceSvg(svgElement);
-    lastSource = source;
-    statusMessage.textContent = '描画しました。PNG・SVG を保存できます。';
-    toggleExportButtons(true);
-  } catch (error) {
-    console.error(error);
-    statusMessage.textContent = `描画に失敗しました: ${error.message}`;
-    diagramOutput.innerHTML = '';
-    currentSvg = null;
-    toggleExportButtons(false);
-  } finally {
-    setLoading(false);
-  }
+renderBtn.addEventListener('click', () => {
+  renderDiagram({ trigger: 'manual' });
 });
 
 exportPngBtn.addEventListener('click', async () => {
@@ -99,9 +80,82 @@ function toggleExportButtons(enabled) {
   exportSvgBtn.disabled = !enabled;
 }
 
-function setLoading(isLoading) {
-  renderBtn.disabled = isLoading;
-  renderBtn.textContent = isLoading ? '描画中…' : '描画';
+function setLoading(isLoading, { updateButton = true } = {}) {
+  if (updateButton) {
+    renderBtn.disabled = isLoading;
+    renderBtn.textContent = isLoading ? '描画中…' : '描画';
+  }
+}
+
+function scheduleRender(immediate = false) {
+  if (renderTimer) {
+    clearTimeout(renderTimer);
+  }
+  const delay = immediate ? 0 : AUTO_RENDER_DELAY;
+  renderTimer = setTimeout(() => {
+    renderTimer = null;
+    renderDiagram({ trigger: 'auto' });
+  }, delay);
+}
+
+async function renderDiagram({ trigger = 'manual' } = {}) {
+  const source = diagramInput.value.trim();
+  const updateButton = trigger === 'manual';
+
+  if (updateButton && renderTimer) {
+    clearTimeout(renderTimer);
+    renderTimer = null;
+  }
+
+  if (!source) {
+    lastSource = '';
+    lastType = undefined;
+    clearOutput('入力が空です。Mermaid または DOT を貼り付けてください。');
+    return;
+  }
+
+  if (trigger !== 'manual' && source === lastSource && currentType === lastType) {
+    return;
+  }
+
+  const renderToken = ++activeRenderToken;
+  statusMessage.textContent = '描画中…';
+  setLoading(true, { updateButton });
+
+  try {
+    let svgElement;
+    if (currentType === 'mermaid') {
+      svgElement = await renderMermaid(source);
+    } else {
+      svgElement = await renderGraphviz(source);
+    }
+
+    if (renderToken !== activeRenderToken) {
+      return;
+    }
+
+    replaceSvg(svgElement);
+    lastSource = source;
+    lastType = currentType;
+    statusMessage.textContent = '描画しました。PNG・SVG を保存できます。';
+    toggleExportButtons(true);
+  } catch (error) {
+    if (renderToken === activeRenderToken) {
+      console.error(error);
+      clearOutput(`描画に失敗しました: ${error.message}`);
+    }
+  } finally {
+    setLoading(false, { updateButton });
+  }
+}
+
+function clearOutput(message) {
+  diagramOutput.innerHTML = '';
+  currentSvg = null;
+  toggleExportButtons(false);
+  if (typeof message === 'string') {
+    statusMessage.textContent = message;
+  }
 }
 
 async function renderMermaid(source) {
