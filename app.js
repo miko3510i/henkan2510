@@ -171,14 +171,16 @@ async function exportSvgAsPng(svgElement, filename) {
         // ignore decode failures, fallback to onload-rendered image
       }
     }
-    const { width, height, x, y } = getSvgDimensions(svgElement);
-    const scale = calculateScale(width, height);
+    const svgDims = getSvgDimensions(svgElement);
+    const naturalWidth = image.width || svgDims.width;
+    const naturalHeight = image.height || svgDims.height;
+    const scale = calculateScale(naturalWidth, naturalHeight);
     const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(width * scale);
-    canvas.height = Math.ceil(height * scale);
+    canvas.width = Math.ceil(naturalWidth * scale);
+    canvas.height = Math.ceil(naturalHeight * scale);
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(scale, 0, 0, scale, -x * scale, -y * scale);
-    ctx.drawImage(image, 0, 0);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.drawImage(image, 0, 0, naturalWidth, naturalHeight);
     const pngUrl = canvas.toDataURL('image/png');
     downloadDataUrl(pngUrl, filename);
   } finally {
