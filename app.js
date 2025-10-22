@@ -19,7 +19,7 @@ const exportSvgBtn = document.getElementById('exportSvgBtn');
 const statusMessage = document.getElementById('statusMessage');
 const diagramOutput = document.getElementById('diagramOutput');
 
-let currentType = 'mermaid';
+let currentType = 'graphviz';
 let currentSvg = null;
 let lastSource = '';
 let lastType = currentType;
