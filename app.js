@@ -147,6 +147,7 @@ function replaceSvg(svgElement) {
 }
 
 function normalizeSvg(svgElement) {
+  ensureViewBox(svgElement);
   svgElement.setAttribute('preserveAspectRatio', 'xMinYMin meet');
   svgElement.style.maxWidth = 'none';
   svgElement.style.height = 'auto';
@@ -163,13 +164,20 @@ async function exportSvgAsPng(svgElement, filename) {
   const url = URL.createObjectURL(svgBlob);
   try {
     const image = await loadImage(url);
-    const { width, height } = getSvgDimensions(svgElement);
+    if (image.decode) {
+      try {
+        await image.decode();
+      } catch (e) {
+        // ignore decode failures, fallback to onload-rendered image
+      }
+    }
+    const { width, height, x, y } = getSvgDimensions(svgElement);
     const scale = calculateScale(width, height);
     const canvas = document.createElement('canvas');
-    canvas.width = width * scale;
-    canvas.height = height * scale;
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil(height * scale);
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(scale, 0, 0, scale, -x * scale, -y * scale);
     ctx.drawImage(image, 0, 0);
     const pngUrl = canvas.toDataURL('image/png');
     downloadDataUrl(pngUrl, filename);
@@ -179,10 +187,20 @@ async function exportSvgAsPng(svgElement, filename) {
 }
 
 function getSvgDimensions(svgElement) {
+  const viewBox = svgElement.viewBox && svgElement.viewBox.baseVal;
+  if (viewBox && viewBox.width && viewBox.height) {
+    return {
+      x: viewBox.x,
+      y: viewBox.y,
+      width: viewBox.width,
+      height: viewBox.height
+    };
+  }
+
   const bbox = svgElement.getBBox();
-  const width = bbox.width || parseFloat(svgElement.getAttribute('width')) || svgElement.clientWidth || 1280;
-  const height = bbox.height || parseFloat(svgElement.getAttribute('height')) || svgElement.clientHeight || 720;
-  return { width, height };
+  const width = bbox.width || toNumber(svgElement.getAttribute('width')) || svgElement.clientWidth || 1280;
+  const height = bbox.height || toNumber(svgElement.getAttribute('height')) || svgElement.clientHeight || 720;
+  return { x: bbox.x || 0, y: bbox.y || 0, width, height };
 }
 
 function calculateScale(width, height) {
@@ -232,4 +250,23 @@ function exportSvg(svgElement, filename) {
     svgString
   ], { type: 'image/svg+xml;charset=utf-8;' });
   downloadBlob(blob, filename);
+}
+
+function ensureViewBox(svgElement) {
+  const hasViewBox = svgElement.getAttribute('viewBox');
+  if (hasViewBox) return;
+  try {
+    const bbox = svgElement.getBBox();
+    if (bbox && bbox.width && bbox.height) {
+      svgElement.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+    }
+  } catch (error) {
+    // If getBBox fails (e.g., SVG hidden), fall back later when dimensions are computed
+  }
+}
+
+function toNumber(value) {
+  if (!value) return undefined;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
