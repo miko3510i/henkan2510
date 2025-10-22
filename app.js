@@ -13,7 +13,6 @@ mermaid.initialize({
 
 const diagramTypeInputs = document.querySelectorAll('input[name="diagramType"]');
 const diagramInput = document.getElementById('diagramInput');
-const renderBtn = document.getElementById('renderBtn');
 const exportPngBtn = document.getElementById('exportPngBtn');
 const exportSvgBtn = document.getElementById('exportSvgBtn');
 const statusMessage = document.getElementById('statusMessage');
@@ -49,10 +48,6 @@ diagramInput.addEventListener('input', () => {
   scheduleRender();
 });
 
-renderBtn.addEventListener('click', () => {
-  renderDiagram({ trigger: 'manual' });
-});
-
 exportPngBtn.addEventListener('click', async () => {
   if (!currentSvg) return;
   try {
@@ -80,13 +75,6 @@ function toggleExportButtons(enabled) {
   exportSvgBtn.disabled = !enabled;
 }
 
-function setLoading(isLoading, { updateButton = true } = {}) {
-  if (updateButton) {
-    renderBtn.disabled = isLoading;
-    renderBtn.textContent = isLoading ? '描画中…' : '描画';
-  }
-}
-
 function scheduleRender(immediate = false) {
   if (renderTimer) {
     clearTimeout(renderTimer);
@@ -94,18 +82,12 @@ function scheduleRender(immediate = false) {
   const delay = immediate ? 0 : AUTO_RENDER_DELAY;
   renderTimer = setTimeout(() => {
     renderTimer = null;
-    renderDiagram({ trigger: 'auto' });
+    renderDiagram();
   }, delay);
 }
 
-async function renderDiagram({ trigger = 'manual' } = {}) {
+async function renderDiagram() {
   const source = diagramInput.value.trim();
-  const updateButton = trigger === 'manual';
-
-  if (updateButton && renderTimer) {
-    clearTimeout(renderTimer);
-    renderTimer = null;
-  }
 
   if (!source) {
     lastSource = '';
@@ -114,13 +96,13 @@ async function renderDiagram({ trigger = 'manual' } = {}) {
     return;
   }
 
-  if (trigger !== 'manual' && source === lastSource && currentType === lastType) {
+  if (source === lastSource && currentType === lastType) {
     return;
   }
 
   const renderToken = ++activeRenderToken;
   statusMessage.textContent = '描画中…';
-  setLoading(true, { updateButton });
+  toggleExportButtons(false);
 
   try {
     let svgElement;
@@ -144,8 +126,6 @@ async function renderDiagram({ trigger = 'manual' } = {}) {
       console.error(error);
       clearOutput(`描画に失敗しました: ${error.message}`);
     }
-  } finally {
-    setLoading(false, { updateButton });
   }
 }
 
