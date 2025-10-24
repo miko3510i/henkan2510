@@ -3,7 +3,7 @@ mermaid.initialize({
   startOnLoad: false,
   securityLevel: 'loose',
   flowchart: {
-    htmlLabels: true,
+    htmlLabels: false,
     curve: 'basis',
     padding: 16,
     useMaxWidth: false,
@@ -249,6 +249,7 @@ function calculateScale(width, height) {
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    image.crossOrigin = 'anonymous';
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error('SVG を画像に変換できませんでした。'));
     image.src = url;
